@@ -4,17 +4,27 @@ from __future__ import absolute_import
 
 import h5py
 import argparse
+import numpy as np
+import random
 import matplotlib.pyplot as plt
 
 
 class Generator(object):
-    def __init__(self, h5_file):
+    def __init__(self, h5_file, shuffle=True):
         self.file = h5_file
+        self.shuffle = shuffle
 
     def __call__(self):
         with h5py.File(self.file, 'r') as hf:
-            for im in hf['input_image']:
-                yield im
+            self.num_images = hf['input_image'].shape[0]
+            shuffle_indices = range(self.num_images)
+            if self.shuffle:
+                random.shuffle(shuffle_indices)
+            for index in shuffle_indices:
+                yield hf['input_image'][index]
+
+    def get_num_items(self):
+        return self.num_images
 
 
 if __name__ == '__main__':
