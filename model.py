@@ -9,6 +9,7 @@ from six.moves import xrange
 
 from ops import *
 from utils import *
+from generator import *
 
 def conv_out_size_same(size, stride):
   return int(math.ceil(float(size) / float(stride)))
@@ -74,6 +75,15 @@ class DCGAN(object):
     if self.dataset_name == 'mnist':
       self.data_X, self.data_y = self.load_mnist()
       self.c_dim = self.data_X[0].shape[-1]
+    elif self.input_fname_pattern.endswith('.h5'):
+      data_path = os.path.join(self.data_dir, self.dataset_name, self.input_fname_pattern)
+      self.data_gen = Generator(data_path)
+      self.data = self.data_gen()
+      nextImg = next(self.data)
+      if len(nextImg.shape) >= 3:
+        self.c_dim = next(self.data).shape[-1]
+      else:
+        self.c_dim = 1
     else:
       data_path = os.path.join(self.data_dir, self.dataset_name, self.input_fname_pattern)
       self.data = glob(data_path)
@@ -171,6 +181,14 @@ class DCGAN(object):
     if config.dataset == 'mnist':
       sample_inputs = self.data_X[0:self.sample_num]
       sample_labels = self.data_y[0:self.sample_num]
+    elif self.input_fname_pattern.endswith('.h5'):
+      sample = [transform(next(self.data), self.input_height, self.input_width,
+                          self.output_height, self.output_width, self.crop)
+                for i in range(self.sample_num)]
+      if (self.grayscale):
+        sample_inputs = np.array(sample).astype(np.float32)[:, :, :, None]
+      else:
+        sample_inputs = np.array(sample).astype(np.float32)
     else:
       sample_files = self.data[0:self.sample_num]
       sample = [
@@ -198,6 +216,8 @@ class DCGAN(object):
     for epoch in xrange(config.epoch):
       if config.dataset == 'mnist':
         batch_idxs = min(len(self.data_X), config.train_size) // config.batch_size
+      elif self.input_fname_pattern.endswith('.h5'):
+        batch_idxs = min(self.data_gen.get_num_items(), config.train_size) // config.batch_size
       else:      
         self.data = glob(os.path.join(
           config.data_dir, config.dataset, self.input_fname_pattern))
@@ -208,6 +228,14 @@ class DCGAN(object):
         if config.dataset == 'mnist':
           batch_images = self.data_X[idx*config.batch_size:(idx+1)*config.batch_size]
           batch_labels = self.data_y[idx*config.batch_size:(idx+1)*config.batch_size]
+        elif self.input_fname_pattern.endswith('.h5'):
+          batch = [transform(next(self.data), self.input_height, self.input_width,
+                              self.output_height, self.output_width, self.crop)
+                    for i in range(config.batch_size)]
+          if (self.grayscale):
+            batch_images = np.array(batch).astype(np.float32)[:, :, :, None]
+          else:
+            batch_images = np.array(batch).astype(np.float32)
         else:
           batch_files = self.data[idx*config.batch_size:(idx+1)*config.batch_size]
           batch = [
