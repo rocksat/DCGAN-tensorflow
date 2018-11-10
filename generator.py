@@ -5,6 +5,7 @@ from __future__ import absolute_import
 import h5py
 import argparse
 import numpy as np
+import itertools
 import random
 import matplotlib.pyplot as plt
 
@@ -20,7 +21,7 @@ class Generator(object):
             shuffle_indices = range(self.num_images)
             if self.shuffle:
                 random.shuffle(shuffle_indices)
-            for index in shuffle_indices:
+            for index in itertools.cycle(shuffle_indices):
                 yield hf['input_image'][index]
 
     def get_num_items(self):
